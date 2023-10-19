@@ -428,23 +428,12 @@ HRESULT InitDevice()
     // Create index buffer
     WORD indices[] =
     {
-        3,1,0,
-        2,1,3,
-
-        0,5,4,
-        1,5,0,
-
-        3,4,7,
-        0,4,3,
-
-        1,6,5,
-        2,6,1,
-
-        2,7,6,
-        3,7,2,
-
-        6,4,5,
-        7,4,6,
+        0,3,1,2,5,6,4,7,0,3,
+        -1,
+        2,3,6,7,
+        -1,
+        0,1,4,5,
+        -1,
     };
 
     bd.Usage = D3D11_USAGE_DEFAULT;
@@ -486,8 +475,8 @@ HRESULT InitDevice()
     // Set Rasterizer State
     ID3D11RasterizerState* m_rasterState = 0;
     D3D11_RASTERIZER_DESC rasterDesc;
-    rasterDesc.CullMode = D3D11_CULL_NONE;
-    rasterDesc.FillMode = D3D11_FILL_WIREFRAME;
+    rasterDesc.CullMode = D3D11_CULL_BACK;
+    rasterDesc.FillMode = D3D11_FILL_SOLID;
     rasterDesc.DepthClipEnable = true;
     rasterDesc.FrontCounterClockwise = false;
     rasterDesc.MultisampleEnable = false;
