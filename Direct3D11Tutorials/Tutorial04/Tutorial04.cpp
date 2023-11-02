@@ -13,6 +13,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License (MIT).
 //--------------------------------------------------------------------------------------
+#include <cstdlib>
+#include <ctime>
 #include <windows.h>
 #include <d3d11_1.h>
 #include <d3dcompiler.h>
@@ -64,7 +66,7 @@ XMMATRIX                g_World;
 XMMATRIX                g_View;
 XMMATRIX                g_Projection;
 
-const unsigned int indexCount = 39;
+int _indexCount = 0;
 
 
 //--------------------------------------------------------------------------------------
@@ -398,28 +400,58 @@ HRESULT InitDevice()
     if( FAILED( hr ) )
         return hr;
 
-    // Create vertex buffer
-    SimpleVertex vertices[] =
-    {
-        { XMFLOAT3( 0.0f, 0.0f, 2.0f ), XMFLOAT4( 0.0f, 0.0f, 1.0f, 1.0f ) },
-        { XMFLOAT3( 1.0f, 0.0f, 2.0f ), XMFLOAT4( 0.0f, 1.0f, 0.0f, 1.0f ) },
-        { XMFLOAT3( 0.5f, -0.875f, 2.0f ), XMFLOAT4( 0.0f, 1.0f, 1.0f, 1.0f ) },
-        { XMFLOAT3( -0.5f, -0.875f, 2.0f ), XMFLOAT4( 1.0f, 0.0f, 0.0f, 1.0f ) },
-        { XMFLOAT3( -1.0f, 0.0f, 2.0f ), XMFLOAT4( 1.0f, 0.0f, 1.0f, 1.0f ) },
-        { XMFLOAT3( -0.5f, 0.875f, 2.0f ), XMFLOAT4( 1.0f, 1.0f, 0.0f, 1.0f ) },
-        { XMFLOAT3( 0.5f, 0.875f, 2.0f ), XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f ) },
-        { XMFLOAT3( 0.0f, 0.0f, -2.0f ), XMFLOAT4( 0.0f, 0.0f, 0.0f, 1.0f ) },
-        { XMFLOAT3( 1.0f, 0.0f, -2.0f ), XMFLOAT4( 0.0f, 0.0f, 1.0f, 1.0f ) },
-        { XMFLOAT3( 0.5f, -0.875f, -2.0f ), XMFLOAT4( 0.0f, 1.0f, 0.0f, 1.0f ) },
-        { XMFLOAT3( -0.5f, -0.875f, -2.0f ), XMFLOAT4( 0.0f, 1.0f, 1.0f, 1.0f ) },
-        { XMFLOAT3( -1.0f, 0.0f, -2.0f ), XMFLOAT4( 1.0f, 0.0f, 0.0f, 1.0f ) },
-        { XMFLOAT3( -0.5f, 0.875f, -2.0f ), XMFLOAT4( 1.0f, 0.0f, 1.0f, 1.0f ) },
-        { XMFLOAT3( 0.5f, 0.875f, -2.0f ), XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f ) },
+    
+    const unsigned int density = 20;
+    const unsigned int vertexCount = density * density;
+    SimpleVertex vertices[vertexCount];
 
-    };
+    const float size = 4.0f;
+    const float interval = size / density;
+    const XMFLOAT4 colour(1.0f, 0.0f, 0.0f, 1.0f);
+
+    std::srand((unsigned int)std::time(nullptr));
+
+    for (int row = 0; row < density; row++)
+    {
+        for (int col = 0; col < density; col++)
+        {
+            float x = (col * interval) - (size / 2.0f);
+            float y = (row * interval) - (size / 2.0f);
+            float z = ((float)rand() / RAND_MAX) / 2.0f;
+            vertices[row * density + col] = { XMFLOAT3(x, y, z), colour };
+        }
+    }
+
+    const int indexCount = 2 * density * (density - 1);
+    _indexCount = indexCount;
+    WORD indices[indexCount];
+
+    const unsigned int rowCount = density - 1;
+    int index = 0;
+
+    for (unsigned int row = 0; row < rowCount; row++)
+    {
+        if (row % 2 == 0) {
+            for (int col = 0; col < density; col++)
+            {
+                indices[index++] = row * density + col;
+                indices[index++] = (row + 1) * density + col;
+            }
+        }
+        else {
+            for (int col = density - 1; col >= 0; col--)
+            {
+                indices[index++] = (row + 1) * density + col;
+                indices[index++] = row * density + col;
+            }
+        }
+    }
+
+
+    // Create vertex buffer
     D3D11_BUFFER_DESC bd = {};
     bd.Usage = D3D11_USAGE_DEFAULT;
-    bd.ByteWidth = sizeof( SimpleVertex ) * 14;
+    bd.ByteWidth = sizeof( SimpleVertex ) * vertexCount;
     bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	bd.CPUAccessFlags = 0;
 
@@ -435,23 +467,8 @@ HRESULT InitDevice()
     g_pImmediateContext->IASetVertexBuffers( 0, 1, &g_pVertexBuffer, &stride, &offset );
 
     // Create index buffer
-    
-    WORD indices[] =
-    {
-        13,6,8,1,9,2,10,3,11,4,12,5,13,6,
-        -1,
-        2,1,0,6,5,
-        -1,
-        5,4,0,3,2,
-        -1,
-        12,13,7,8,9,
-        -1,
-        9,10,7,11,12,
-        -1,
-    };
-
     bd.Usage = D3D11_USAGE_DEFAULT;
-    bd.ByteWidth = sizeof( WORD ) * indexCount;        // 36 vertices needed for 12 triangles in a triangle list
+    bd.ByteWidth = sizeof( WORD ) * _indexCount;        // 36 vertices needed for 12 triangles in a triangle list
     bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	bd.CPUAccessFlags = 0;
     InitData.pSysMem = indices;
@@ -478,8 +495,8 @@ HRESULT InitDevice()
 	g_World = XMMatrixIdentity();
 
     // Initialize the view matrix
-	XMVECTOR Eye = XMVectorSet( 0.0f, 2.5f, -5.0f, 0.0f );
-	XMVECTOR At = XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
+	XMVECTOR Eye = XMVectorSet( 0.0f, 0.0f, -3.5f, 0.0f );
+	XMVECTOR At = XMVectorSet( 0.0f, 0.0f, 0.0f, 0.0f );
 	XMVECTOR Up = XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
 	g_View = XMMatrixLookAtLH( Eye, At, Up );
 
@@ -489,7 +506,7 @@ HRESULT InitDevice()
     // Set Rasterizer State
     ID3D11RasterizerState* m_rasterState = 0;
     D3D11_RASTERIZER_DESC rasterDesc;
-    rasterDesc.CullMode = D3D11_CULL_NONE;
+    rasterDesc.CullMode = D3D11_CULL_BACK;
     rasterDesc.FillMode = D3D11_FILL_WIREFRAME;
     rasterDesc.DepthClipEnable = true;
     rasterDesc.FrontCounterClockwise = false;
@@ -607,12 +624,12 @@ void Render()
 	g_pImmediateContext->VSSetConstantBuffers( 0, 1, &g_pConstantBuffer );
 	g_pImmediateContext->PSSetShader( g_pPixelShader, nullptr, 0 );
     // 1st Cube
-	g_pImmediateContext->DrawIndexed(indexCount, 0, 0 );        // 36 vertices needed for 12 triangles in a triangle list
+	//g_pImmediateContext->DrawIndexed(_indexCount, 0, 0 );        // 36 vertices needed for 12 triangles in a triangle list
     // 2nd Cube
-    g_World = XMMatrixTranslation(-2.8f, 0, 0);
+    g_World = XMMatrixRotationX(0.7);
     cb.mWorld = XMMatrixTranspose(g_World);
     g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb, 0, 0);
-    //g_pImmediateContext->DrawIndexed(indexCount, 0, 0);
+    g_pImmediateContext->DrawIndexed(_indexCount, 0, 0);
 
     //
     // Present our back buffer to our front buffer
